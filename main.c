@@ -76,7 +76,7 @@ void execution_time_measure(bool (*func)(const char* path), const char* path, ui
 {
     const clock_t start = clock();
 
-    for (int i = 0; i < loop_count; i++) {
+    for (uint32_t i = 0; i < loop_count; i++) {
         if (func(path) == false) {
             printf("Error opening file\n");
         }
