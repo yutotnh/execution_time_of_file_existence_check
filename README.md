@@ -1,0 +1,2 @@
+# execution_time_of_file_existence_check
+ファイルの存在確認の実行時間
