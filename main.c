@@ -7,6 +7,10 @@
  * @note This software is released under the MIT License.
  */
 
+#define _POSIX_C_SOURCE 200809L
+#define _DEFAULT_SOURCE
+
+#include <dirent.h>
 #include <errno.h>
 #include <limits.h>
 #include <stdbool.h>
@@ -75,23 +79,22 @@ bool is_exist_using_fopen(const char* path)
  * @brief Measure the execution time of the function
  * @param func The function to measure
  * @param path The path to the file
- * @param loop_count The number of times to execute the function
+ * @param file_count The number of times to execute the function
  * @param func_name The name of the function
  */
-void execution_time_measure(bool (*func)(const char* path), const char* path, uint32_t loop_count,
-                            const char* func_name)
+void execution_time_measure(bool (*func)(const char* path), char** paths, uint32_t file_count, const char* func_name)
 {
     const clock_t start = clock();
 
-    for (uint32_t i = 0; i < loop_count; i++) {
-        if (func(path) == false) {
-            printf("Error opening file\n");
+    for (uint32_t i = 0; i < file_count; i++) {
+        if (func(paths[i]) == false) {
+            fprintf(stderr, "Error: %s", paths[i]);
         }
     }
 
     const clock_t end = clock();
 
-    printf("%s:%g\n", func_name, (double)(end - start) / CLOCKS_PER_SEC / loop_count);
+    printf("%s:%g\n", func_name, (double)(end - start) / CLOCKS_PER_SEC / file_count);
 }
 
 /**
@@ -100,22 +103,21 @@ void execution_time_measure(bool (*func)(const char* path), const char* path, ui
  */
 void usage(const char* cmd)
 {
-    printf("Usage: %s [FILE] [LOOP_COUNT]\n", cmd);
+    printf("Usage: %s [DIR]\n", cmd);
 }
 
 /**
  * @brief Parse the arguments
  * @param argc The number of arguments
  * @param argv The arguments
- * @param path The path to the file
- * @param loop_count The number of times to execute the function
+ * @param path The path to the directory
  * @note If the number of arguments is not 3, exit with EXIT_FAILURE
  * @note If the second argument is not a decimal number, exit with EXIT_FAILURE
  */
-void parse_args(int argc, char* argv[], char** path, uint32_t* loop_count)
+void parse_args(int argc, char* argv[], char** path)
 {
     // Check the number of arguments
-    if (argc != 3) {
+    if (argc != 2) {
         usage(argv[0]);
         exit(EXIT_FAILURE);
     }
@@ -123,50 +125,74 @@ void parse_args(int argc, char* argv[], char** path, uint32_t* loop_count)
     // Get the path to the file
     *path = argv[1];
 
-    // Get the number of times to execute the function
-    const char* const str = argv[2];
-    char*             end;
-    int               si;
+    // Check if the directory exists
+    struct stat st;
+    if (stat(*path, &st) == -1) {
+        fprintf(stderr, "%s is not exists", *path);
+        exit(EXIT_FAILURE);
+    }
 
-    errno = 0;
+    if (!S_ISDIR(st.st_mode)) {
+        fprintf(stderr, "%s is not a directory", *path);
+    }
+}
 
-    const long sl = strtol(str, &end, 10);
+void list_of_files_in_directory(const char* dir_path, char*** file_paths, uint32_t* file_count)
+{
+    DIR* dir = opendir(dir_path);
+    if (dir == NULL) {
+        fprintf(stderr, "Error opening directory");
+        exit(EXIT_FAILURE);
+    }
 
-    if (end == str) {
-        fprintf(stderr, "%s: not a decimal number\n", str);
-        exit(EXIT_FAILURE);
-    } else if ('\0' != *end) {
-        fprintf(stderr, "%s: extra characters at end of input: %s\n", str, end);
-        exit(EXIT_FAILURE);
-    } else if ((LONG_MIN == sl || LONG_MAX == sl) && ERANGE == errno) {
-        fprintf(stderr, "%s out of range of type long\n", str);
-        exit(EXIT_FAILURE);
-    } else if (sl > INT_MAX) {
-        fprintf(stderr, "%ld greater than INT_MAX\n", sl);
-        exit(EXIT_FAILURE);
-    } else if (sl < INT_MIN) {
-        fprintf(stderr, "%ld less thatn INT_MIN\n", sl);
-        exit(EXIT_FAILURE);
-    } else {
-        si = (int)sl;
-
-        if (si <= 0) {
-            fprintf(stderr, "%d is less than or equal to 0", si);
-            exit(EXIT_FAILURE);
-        } else {
-            *loop_count = si;
+    // Get the number of files
+    *file_count          = 0;
+    struct dirent* entry = NULL;
+    while ((entry = readdir(dir)) != NULL) {
+        struct stat st;
+        char        path[PATH_MAX + 1];
+        snprintf(path, PATH_MAX + 1, "%s/%s", dir_path, entry->d_name);
+        if ((stat(path, &st) == 0) && S_ISREG(st.st_mode)) {
+            (*file_count)++;
         }
     }
+
+    if (*file_count == 0) {
+        fprintf(stderr, "No files in directory");
+        exit(EXIT_FAILURE);
+    }
+
+    // Get the file paths
+    // char paths[*file_count][PATH_MAX + 1];
+    *file_paths = (char**)malloc(sizeof(char*) * *file_count);
+
+    rewinddir(dir);
+    uint32_t i = 0;
+    while ((entry = readdir(dir)) != NULL) {
+        struct stat st;
+        char        path[PATH_MAX + 1];
+        snprintf(path, PATH_MAX + 1, "%s/%s", dir_path, entry->d_name);
+        if (stat(path, &st) == 0 && S_ISREG(st.st_mode)) {
+            (*file_paths)[i] = (char*)malloc(sizeof(char) * (PATH_MAX + 1));
+            snprintf((*file_paths)[i], PATH_MAX + 1, "%s", path);
+            i++;
+        }
+    }
+
+    closedir(dir);
 }
 
 int main(int argc, char* argv[])
 {
-    char*    path       = NULL;
-    uint32_t loop_count = 1;
+    char* dir_path = NULL;
 
-    parse_args(argc, argv, &path, &loop_count);
+    parse_args(argc, argv, &dir_path);
 
-    execution_time_measure(is_exist_using_stat, path, loop_count, "stat");
-    execution_time_measure(is_exist_using_access, path, loop_count, "access");
-    execution_time_measure(is_exist_using_fopen, path, loop_count, "fopen");
+    char**   file_paths = NULL;
+    uint32_t file_count = 0;
+    list_of_files_in_directory(dir_path, &file_paths, &file_count);
+
+    execution_time_measure(is_exist_using_stat, file_paths, file_count, "stat");
+    execution_time_measure(is_exist_using_access, file_paths, file_count, "access");
+    execution_time_measure(is_exist_using_fopen, file_paths, file_count, "fopen");
 }

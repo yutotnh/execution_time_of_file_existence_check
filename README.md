@@ -18,7 +18,7 @@ Usage: ./a.out [FILE] [LOOP_COUNT]
 
 ```console
 gcc main.c
-./a.out /etc/passwd 1000000
+./a.out dir
 ```
 
 ## Result
@@ -34,9 +34,14 @@ Distributor ID: Ubuntu
 Description:    Ubuntu 22.04.2 LTS
 Release:        22.04
 Codename:       jammy
+$ mkdir dir
+$ cd dir
+$ for i in {1..100000}; do dd if=/dev/zero of=file$i bs=1024 count=1; done
+$ cd ..
+$ sudo sh -c "echo 3 >'/proc/sys/vm/drop_caches' && swapoff -a && swapon -a"
 $ gcc main.c
-$ ./a.out /etc/passwd 1000000
-stat:2.44573e-07
-access:2.93829e-07
-fopen:7.98551e-07
+$ ./a.out dir
+stat:4.8385e-07
+access:5.5645e-07
+fopen:9.8323e-07
 ```
