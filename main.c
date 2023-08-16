@@ -55,7 +55,7 @@ bool is_exist_using_access(const char* path)
  */
 bool is_exist_using_fopen(const char* path)
 {
-    FILE* fp = fopen(path, "r");
+    FILE* fp = fopen(path, "rb");
     if (fp == NULL) {
         return false;
     }
