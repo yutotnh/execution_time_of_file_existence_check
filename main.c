@@ -26,13 +26,19 @@ bool is_exist_using_stat(const char* path)
 {
     struct stat st;
 
-    int exist = stat(path, &st);
-
-    if (exist == 0) {
-        return true;
+    if (stat(path, &st) == -1) {
+        return false;
     }
 
-    return false;
+    if (!S_ISREG(st.st_mode)) {
+        return false;
+    }
+
+    if (!(st.st_mode & S_IRUSR)) {
+        return false;
+    }
+
+    return true;
 }
 
 /**
