@@ -20,7 +20,7 @@
 /**
  * @brief Check if the file exists using stat
  * @param path The path to the file
- * @
+ * @return true The file exists
  */
 bool is_exist_using_stat(const char* path)
 {
@@ -38,7 +38,7 @@ bool is_exist_using_stat(const char* path)
 /**
  * @brief Check if the file exists using access
  * @param path The path to the file
- * @
+ * @return true The file exists
  */
 bool is_exist_using_access(const char* path)
 {
@@ -52,6 +52,7 @@ bool is_exist_using_access(const char* path)
 /**
  * @brief Check if the file exists using fopen
  * @param path The path to the file
+ * @return true The file exists
  */
 bool is_exist_using_fopen(const char* path)
 {
